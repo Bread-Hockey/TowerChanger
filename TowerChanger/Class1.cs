@@ -2,14 +2,13 @@
 using System.Reflection;
 using System.Runtime.Serialization.Formatters;
 using ThunderRoad;
+using ThunderRoad.Skill.Spell;
 using UnityEngine;
 namespace TowerChanger
 {
     public class TowerChanger : ThunderScript
     {
         public static HomeTower homeTower = null;
-        Type type = typeof(HomeTower);
-        public static MethodInfo ShowTower;
 
 
         public static ModOptionString[] unlockDoor =
@@ -38,8 +37,8 @@ namespace TowerChanger
             {
                 homeTower.dalgarianDoor.door.SetActive(true);
                 homeTower.dalgarianDoor.destroyedDoor.SetActive(false);
-                homeTower.UnlockTowerDoor();
-                homeTower.towerTeleporter.gameObject.SetActive(true);
+                homeTower.Invoke("UnlockTowerDoor", 0);
+                homeTower.towerTeleporter.gameObject.SetActive(true);   
             }
         }
 
@@ -52,7 +51,7 @@ namespace TowerChanger
         {
             if (Player.currentCreature != null && homeTower != null)
             {
-                homeTower.TowerAnnihilation();
+                homeTower.Invoke("TowerAnnihilation", 0);
             }
         }
 
@@ -62,7 +61,7 @@ namespace TowerChanger
         {
             if (Player.currentCreature != null && homeTower != null)
             {
-                homeTower.StartRaid();
+                homeTower.Invoke("StartRaid", 0);
             }
         }
         public override void ScriptLoaded(ModManager.ModData modData)
@@ -71,7 +70,6 @@ namespace TowerChanger
             EventManager.onLevelLoad += EventManager_onLevelLoad;
             if (!modData.TryGetModOption("Tower State", out ModOption modoptionTowerState)) return;
             modoptionTowerState.ValueChanged += ModoptionTowerState_ValueChanged;
-            ShowTower = type.GetMethod("ShowTower", BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
         private void ModoptionTowerState_ValueChanged(object obj)
@@ -80,11 +78,11 @@ namespace TowerChanger
             {
                 if (state == "Broken")
                 {
-                    ShowTower.Invoke(homeTower, new object[] { true });
+                    ShowTowerMethod(true);
                 }
                 else
                 {
-                    ShowTower.Invoke(homeTower, new object[] { false });
+                    ShowTowerMethod(false);
                 }
             }
         }
@@ -92,18 +90,18 @@ namespace TowerChanger
         private void EventManager_onLevelLoad(LevelData levelData, LevelData.Mode mode, EventTime eventTime)
         {
             if (eventTime == EventTime.OnStart) return;
-            if (levelData.id == "Home" && Player.characterData.mode.saveData is SandboxSaveData)
+            if (levelData.id == "Home")
             {
                 if (Transform.FindObjectOfType<HomeTower>() is HomeTower tower)
                 {
                     homeTower = tower;
                     if (state == "Broken")
                     {
-                        ShowTower.Invoke(homeTower, new object[] { true });
+                        ShowTowerMethod(true);
                     }
                     else
                     {
-                        ShowTower.Invoke(homeTower, new object[] { false });
+                        ShowTowerMethod(false);
                     }
                 }
             }
@@ -111,6 +109,35 @@ namespace TowerChanger
             {
                 homeTower = null;
             }
+        }
+
+        private void ShowTowerMethod(bool isCollapsed)
+        {
+            if (isCollapsed)
+            {
+                homeTower.towerUndamaged.gameObject.SetActive(value: false);
+                foreach (ParticleSystem item in homeTower.towerStorm)
+                {
+                    if (!((UnityEngine.Object)(object)item == null))
+                    {
+                        item.Stop();
+                    }
+                }
+
+                homeTower.towerCollapsed.gameObject.SetActive(value: true);
+                return;
+            }
+
+            homeTower.towerUndamaged.gameObject.SetActive(value: true);
+            foreach (ParticleSystem item2 in homeTower.towerStorm)
+            {
+                if (!((UnityEngine.Object)(object)item2 == null))
+                {
+                    item2.Play();
+                }
+            }
+
+            homeTower.towerCollapsed.gameObject.SetActive(value: false);
         }
     }
 }
